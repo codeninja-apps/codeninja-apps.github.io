@@ -1,3 +1,23 @@
 theme: jekyll-theme-minimal
 title: Octocat's homepage
 description: Bookmark this to keep an eye on my project updates!
+url: "https://codeninja-apps.github.io" # the base hostname & protocol for your site
+
+# Build settings
+markdown: kramdown
+theme: minima # or any other theme you prefer
+
+# Author information
+author:
+  name: Your Name
+  email: your.email@example.com
+
+# Social media links
+social:
+  twitter: yourtwitterhandle
+  github: yourusername
+
+# Plugins
+plugins:
+  - jekyll-feed # for RSS feed
+  - jekyll-seo-tag # for SEO
