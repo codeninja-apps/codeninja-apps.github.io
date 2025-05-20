@@ -1,0 +1,25 @@
+name: Sync app-ads.txt
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Runs every hour
+  workflow_dispatch:     # Allows manual run
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout your repo
+        uses: actions/checkout@v3
+
+      - name: Download app-ads.txt from cleveradssolutions
+        run: |
+          curl -s https://raw.githubusercontent.com/cleveradssolutions/App-ads.txt/master/app-ads.txt -o app-ads.txt
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app-ads.txt
+          git diff --cached --quiet || git commit -m "Auto update app-ads.txt"
+          git push
