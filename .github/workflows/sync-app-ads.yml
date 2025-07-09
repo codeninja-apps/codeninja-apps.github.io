@@ -2,24 +2,42 @@ name: Sync app-ads.txt
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Runs every hour
-  workflow_dispatch:     # Allows manual run
+    - cron: '0 0 * * *' # Every day at midnight UTC
+  workflow_dispatch: # manual trigger
 
 jobs:
-  sync:
+  sync-app-ads:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout your repo
         uses: actions/checkout@v3
 
-      - name: Download app-ads.txt from cleveradssolutions
+      - name: Download source app-ads.txt
         run: |
-          curl -s https://raw.githubusercontent.com/cleveradssolutions/App-ads.txt/master/app-ads.txt -o app-ads.txt
+          curl -sSL https://raw.githubusercontent.com/cleveradssolutions/App-ads.txt/main/app-ads.txt -o latest-app-ads.txt
 
-      - name: Commit and push if changed
+      - name: Check if app-ads.txt has changed
+        id: diffcheck
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! cmp -s latest-app-ads.txt app-ads.txt; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Replace file if changed
+        if: steps.diffcheck.outputs.changed == 'true'
+        run: |
+          mv latest-app-ads.txt app-ads.txt
+
+      - name: Commit and push changes
+        if: steps.diffcheck.outputs.changed == 'true'
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
           git add app-ads.txt
-          git diff --cached --quiet || git commit -m "Auto update app-ads.txt"
+          git commit -m "Update app-ads.txt from source"
           git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
