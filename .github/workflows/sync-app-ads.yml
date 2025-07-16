@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout your repo
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PERSONAL_TOKEN }}  # ✅ use your PAT
 
       - name: Download source app-ads.txt
         run: |
@@ -28,15 +30,13 @@ jobs:
 
       - name: Replace file if changed
         if: steps.diffcheck.outputs.changed == 'true'
-        run: |
-          mv latest-app-ads.txt app-ads.txt
+        run: mv latest-app-ads.txt app-ads.txt
 
       - name: Commit and push changes
         if: steps.diffcheck.outputs.changed == 'true'
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.PERSONAL_TOKEN }}@github.com/${{ github.repository }}
           git add app-ads.txt
           git commit -m "Update app-ads.txt from source"
           git push origin main
