@@ -2,8 +2,8 @@ name: Sync app-ads.txt
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Runs daily at midnight UTC
-  workflow_dispatch:      # Manual trigger
+    - cron: '0 0 * * *'  # Daily at midnight UTC
+  workflow_dispatch:
 
 jobs:
   sync-app-ads:
@@ -39,4 +39,4 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.PERSONAL_TOKEN }}@github.com/${{ github.repository }}
           git add app-ads.txt
           git commit -m "Update app-ads.txt from source"
-          git push
+          git push origin main
