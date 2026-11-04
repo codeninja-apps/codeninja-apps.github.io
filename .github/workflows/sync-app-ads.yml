@@ -2,30 +2,64 @@ name: Sync app-ads.txt
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Daily at midnight UTC
-  workflow_dispatch:
+    - cron: '0 0 * * *'   # Daily at 00:00 UTC (05:30 AM IST)
+  workflow_dispatch:       # Allows manual run from the Actions tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-app-ads
+  cancel-in-progress: false
+
+env:
+  SOURCE_URL: https://v236a2d8e.cas-apps.com/app-ads.txt
 
 jobs:
   sync-app-ads:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout your repo
-        uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v4
         with:
-          token: ${{ secrets.PERSONAL_TOKEN }}  # ✅ use your PAT
+          token: ${{ secrets.PERSONAL_TOKEN }}
 
       - name: Download source app-ads.txt
         run: |
-          curl -sSL https://raw.githubusercontent.com/cleveradssolutions/App-ads.txt/main/app-ads.txt -o latest-app-ads.txt
+          curl -fsSL --retry 3 --retry-delay 5 --max-time 60 \
+            -A "Mozilla/5.0 (app-ads-sync)" \
+            "$SOURCE_URL" -o latest-app-ads.txt
+
+      - name: Validate downloaded file
+        run: |
+          # Must not be empty
+          if [ ! -s latest-app-ads.txt ]; then
+            echo "::error::Downloaded file is empty. Aborting so the existing file is not overwritten."
+            exit 1
+          fi
+          # Must not be an HTML error/redirect page
+          if grep -qiE '<html|<!doctype' latest-app-ads.txt; then
+            echo "::error::Downloaded content looks like HTML, not app-ads.txt. Aborting."
+            exit 1
+          fi
+          # Must contain at least one valid app-ads line (domain, id, DIRECT/RESELLER)
+          if ! grep -qiE '^[^#]+,[^,]+,[[:space:]]*(DIRECT|RESELLER)' latest-app-ads.txt; then
+            echo "::error::No valid app-ads.txt records found. Aborting."
+            exit 1
+          fi
 
       - name: Check if app-ads.txt has changed
         id: diffcheck
         run: |
-          if ! cmp -s latest-app-ads.txt app-ads.txt; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
+          # Normalize line endings so CRLF/LF differences don't trigger false updates
+          sed -i 's/\r$//' latest-app-ads.txt
+          if [ -f app-ads.txt ] && cmp -s latest-app-ads.txt app-ads.txt; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No changes in source."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Source changed, updating."
           fi
 
       - name: Replace file if changed
@@ -35,8 +69,9 @@ jobs:
       - name: Commit and push changes
         if: steps.diffcheck.outputs.changed == 'true'
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app-ads.txt
-          git commit -m "Update app-ads.txt from source"
+          git commit -m "Update app-ads.txt from source ($(date -u +'%Y-%m-%d'))"
+          git pull --rebase origin main
           git push origin main
